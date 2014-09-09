@@ -1,0 +1,573 @@
+This assignment is meant to introduce you to an operating system simulator
+named NachOS (Not another completely heuristic operating system). We will
+start with a basic implementation of NachOS that implements processes as
+user-level light-weight threads and very limited system call support, just
+enough to be able to run user programs and print outputs to stdout. 
+In this assignment, we will improve the simulator by implementing twelve
+new system calls, some of which are easy and some require a good understanding 
+of NachOS. The simulator is written in C++. If you do not know C++, there is
+a directory in the NachOS distribution with several C++ examples.
+
+I will first give you an overview of the NachOS simulator. You should go
+through the NachOS draft available on the course web site. The simulator
+models a MIPS processor and as a result, can run only MIPS user programs.
+However, you do not have to write test programs in MIPS assembly language. You
+can write traditional C programs with only constraint that you cannot use any
+C library functions. But this still allows a large variety of programs. On
+top of this, we will develop a system call library specific to NachOS
+environment that you can use in your test programs. A MIPS cross-compiler
+compiles your C program into MIPS assembly language, which the MIPS assembler
+compiles into an object file. Finally, the MIPS linker will generate the
+executable that runs on NachOS. When NachOS is invoked to run
+a user program, it loads the executable in memory and starts the thread in
+the current context i.e., it does not create a new process context. NachOS
+has a simple first-come-first-serve thread scheduler, which carries out the
+context switch operation. Before we discuss more details about the NachOS
+simulator and the assignment, let us first install the simulator and try to
+run a few test programs.
+
+Download cs330assignment1.zip from the course web site.
+Put it in your home directory and unpack it as follows.
+
+> unzip cs330assignment1.zip
+
+Now we are ready to use the cross-compiler for compiling the test programs.
+Before doing that, let us examine the contents of the NachOS simulator.
+Change directory to ~/cs330assignment1/nachos/.
+
+> cd ~/cs330assignment1/nachos/
+
+The c++example/ directory may be important to those who are new to C++. This
+directory does not contain any NachOS code.
+
+Change directory to ~/cs330assignment1/nachos/code/.
+
+> cd ~/cs330assignment1/nachos/code/
+
+You will find several subdirectories here. The ones that are important for
+this assignment are machine (describes the basic MIPS processor simulator),
+threads (the basic NachOS thread management system), userprog (interface
+needed to run user programs), and test (contains ten user programs written
+in C, some of which will be used in this assignment). Now we will compile
+the user programs in the test directory. The cross-compiler works cleanly
+only on csecourses4.cse.iitk.ac.in. The user programs in the test directory
+should only be compiled on this machine.
+
+Log on to csecourses4.cse.iitk.ac.in using ssh with your username and password.
+
+> ssh username@csecourses4.cse.iitk.ac.in
+
+Replace username in the above line by your username. Once you are on
+csecourses4.cse.iitk.ac.in, change directory to 
+~/cs330assignment1/nachos/code/bin/ and type make.
+
+> cd ~/cs330assignment1/nachos/code/bin/
+> make
+
+Next, change directory to ~/cs330assignment1/nachos/code/test/ and type make.
+
+> cd ~/cs330assignment1/nachos/code/test/
+> make
+
+If everything goes fine, you should see ten executables named forkjoin,
+matmult, shell, testyield, testexec, halt, printtest, sort, vectorsum, and
+testregPA. Out of these, matmult, shell, and sort are not relevant to this
+assignment. You should go through the C files and all of these programs are
+fairly straightforward to understand.
+
+Log out of csecourses4.cse.iitk.ac.in. Now we will compile the NachOS
+simulator. You should compile and run this simulator from any one of the two
+machines: csecourses1.cse.iitk.ac.in and csecourses2.cse.iitk.ac.in.
+Please do not overload any of the machines. Run top before starting to run 
+your simulation and if there are already too many NachOS jobs running, try 
+another of these two machines. Each of the two machines can run sixteen NachOS 
+jobs simultaneously. Let us log on to csecourses1.cse.iitk.ac.in and compile
+NachOS. Follow these steps. We will only compile the parts that are relevant
+to this assignment.
+
+> ssh username@csecourses1.cse.iitk.ac.in
+> cd ~/cs330assignment1/nachos/code/threads/
+> make depend
+> make
+> cd ../userprog/
+> make depend
+> make
+
+Ignore all warnings. Check that there is an executable named nachos created
+in ~/cs330assignment1/nachos/code/threads/ and 
+~/cs330assignment1/nachos/code/userprog/. Now, we are ready to run some simulations.
+
+First, we will test the basic thread scheduler of NachOS. Change directory to
+~/cs330assignment1/nachos/code/threads/. Open main.cc. Notice that in the 
+main function, after calling Initialize(), the ThreadTest() function gets 
+called if we compiled with THREADS on (which we did and you can verify this 
+from Makefile). One of the interesting things that the Initialize() function 
+does is to create a main thread and make that the currently running thread. 
+You can take a look at the Initialize() function defined in system.cc. 
+Coming back to the ThreadTest() function, which is defined in threadtest.cc, 
+it simply creates a new thread object and makes this thread execute the 
+SimpleThread() function by calling Fork(). Remember that the Fork() function 
+is called by the main thread. This Fork() function (defined in thread.cc) is 
+different from the traditional UNIX fork() call. This function requires that a 
+thread be already created and it only allocates a stack in such a way that 
+when this thread is scheduled, it will start executing the function passed as 
+the first argument to Fork (in this case SimpleThread()). The second argument 
+to Fork() is passed as the only argument to the SimpleThread() function (in this 
+case an id). The Fork() function finally enqueues this new thread to the ready 
+queue. Coming back to the SimpleThread() function (defined in threadtest.cc), 
+we notice that this function executes a for loop and after each iteration, it 
+calls Yield(). This call essentially makes the currently running thread 
+voluntarily yield the CPU to the scheduler so that some other thread (if any) 
+can run. In the ThreadTest() function, both the main thread and the newly 
+created thread call SimpleThread() and therefore, we expect them to 
+alternately execute one iteration at a time. You can find the source code of 
+Yield() in thread.cc.
+
+With this understanding, we are ready to run nachos. Run ./nachos from
+~/cs330assignment1/nachos/code/threads/ directory. See if you can understand the 
+output. It also prints some simulation statistics at the end.
+
+Now, we will run some user programs on the simulated OS. This is done from the
+~/cs330assignment1/nachos/code/userprog/ directory. Change to this directory.
+
+> cd ~/cs330assignment1/nachos/code/userprog/
+
+You will be spending most of your time running nachos from this directory in
+this assignment. Recall that the user program executables are in the
+~/cs330assignment1/nachos/code/test/ directory. To run a user program on NachOS 
+from the ~/cs330assignment1/nachos/code/userprog/ directory do the following.
+
+> ./nachos -x ../test/halt
+
+This runs the user program halt.c. This program simply calls sys_Halt(), which
+invokes the syscall_Halt system call. This system call simply halts the simulated
+machine.
+
+Try running the program printtest.
+
+> ./nachos -x ../test/printtest
+
+This program prints "hello world", but then crashes with an exception. This
+exception is generated by an unimplemented system call, namely, exit(). If you
+try to run any other program relevant to this assignment, they will all crash
+with some exception due to an unimplemented system call. This brings us to
+the crux of this assignment. Your task is to make all these programs run
+correctly and terminate cleanly. In the following, I will first explain how
+system calls are implemented in NachOS and then discuss how to proceed with
+the assignment.
+
+In syscall.h under the directory ~/cs330assignment1/nachos/code/userprog/, 
+currently several system calls are defined. The system call names start with 
+syscall_. The actual system calls are wrapped into function calls. Corresponding 
+to each system call, there is a function definition in syscall.h. The user 
+programs are supposed to call these functions. These functions are defined in
+~/cs330assignment1/nachos/code/test/start.s. This is written in MIPS assembly 
+language and each function essentially contains three MIPS instructions. The 
+first instruction sets up the system call number register ($2) with the syscall 
+number (recall that in MIPS, register $0 always contains zero). The second 
+instruction is the syscall and the third instruction is the return from the 
+wrapper function (recall that in MIPS, $31 contains the return address from a 
+function). All registers are named as $ followed by the register number. Now, 
+it should be clear how a user program transfers control back to NachOS on a 
+system call. This essentially happens when the syscall instruction executes. 
+This is implemented in a big switch-case block in 
+~/cs330assignment1/nachos/code/machine/mipssim.cc. Search for OP_SYSCALL
+in this file. You will find that this instruction calls the RaiseException()
+function. This function is implemented in 
+~/cs330assignment1/nachos/code/machine/machine.cc. It takes two arguments, 
+namely, the exception type (for a system call, this is of type SyscallException) 
+and whether this exception is due to a bad address. In this assignment, we will 
+always pass zero for the second argument, unless any user program tries to 
+access a memory location that does not belong to the thread running the 
+program. All exception types are defined in 
+~/cs330assignment1/nachos/code/machine/machine.h in the enum ExceptionType. 
+Coming back to the RaiseException function, we find that it switches the mode 
+to SystemMode (same as kernel mode in NachOS) and calls the ExceptionHandler() 
+function, which takes the exception type as an argument. This function handles 
+the exception and once the function returns, the mode switches back to UserMode. 
+This completes the execution of the syscall instruction. The ExceptionHandler() 
+function is defined in ~/cs330assignment1/nachos/code/userprog/exception.cc. 
+This is where all the system calls are implemented. The first line of this 
+function stores the system call number from register $2 into a local variable 
+named type. You can ignore the next few lines and go straight to the if-elseif 
+block. The first condition checks if this is a halt syscall. In that case, it 
+calls Halt() on the interrupt object. This is defined in interrupt.cc, which 
+simply prints simulation statistics, cleans up all allocated simulator memory, 
+and terminates the simulation. Returning to the ExceptionHandler() function, 
+the else if chain implements four flavors of print system calls, namely, 
+PrintInt, PrintChar, PrintString, and PrintIntHex. Recall that the system call 
+arguments are passed in registers $4, $5, $6, $7, which are same as the MIPS 
+function argument registers. So, when we call the wrapper function with the 
+system call arguments (e.g., the integer to print in the PrintInt syscall), 
+they automatically appear in the correct argument registers. The implementations 
+of the print system calls use the NachOS console object, which in these cases, 
+is connected to stdin for reading and stdout for writing (you need not worry 
+about the details of how this is done in this assignment). You can ignore the 
+occasional calls to writeDone->P(). The rest of the code for print implementation 
+should be easy to understand. Remember that this implementation is very specific 
+to NachOS. In reality, there is no special system call for printing. The same 
+system call that writes to a file is used for writing to the stdout, which is 
+treated as a file residing on a character device, as discussed in the class. 
+One important thing to notice is that at the end of each print system call, 
+the program counter is advanced using the following lines.
+
+       // Advance program counters.
+       machine->WriteRegister(PrevPCReg, machine->ReadRegister(PCReg));
+       machine->WriteRegister(PCReg, machine->ReadRegister(NextPCReg));
+       machine->WriteRegister(NextPCReg, machine->ReadRegister(NextPCReg)+4);
+
+It is important to do this at the end of every system call where you expect
+the user program to continue execution after this. It is a responsibility of
+the exception handler because certain exceptions may not actually want the
+program counter to advance and instead, may want the user program to
+re-execute the instruction that raised the exception. This is mostly true for
+non-syscall exceptions. These are usually called restartable exceptions and we
+will learn about these later. The ReadRegister and WriteRegister functions are
+defined in ~/cs330assignment1/nachos/code/machine/machine.cc. All special 
+registers such as the program counter (PCReg), stack pointer (StackReg), 
+last program counter (PrevPCReg), next program counter (NextPCReg), etc. are 
+defined in ~/cs330assignment1/nachos/code/machine/machine.h. This file also 
+defines the basic Machine class. Before we move on to the discussion of the
+system calls that you have to implement, we need to understand how a user
+program starts executing in NachOS.
+
+The NachOS simulation starts at the main function of
+~/cs330assignment1/nachos/code/threads/main.cc. If we are running user programs 
+it would call the StartProcess() function when nachos is invoked with the -x 
+flag. The StartProcess() function is defined in 
+~/cs330assignment1/nachos/code/userprog/progtest.cc. The StartProcess() function 
+takes the executable name as an argument. It allocates an address space and loads 
+the executable in memory. See the AddrSpace constructor in 
+~/cs330assignment1/nachos/code/userprog/addrspace.cc. One important 
+thing to notice in this constructor is that it allocates an object named 
+pageTable. This is a table that maintains a mapping between the
+addresses found in the executable (usually called virtual addresses) and the
+simulated NachOS addresses (usually called the physical address). Currently, the
+mapping is one-to-one. The whole address space is divided into smaller chunks
+called pages of size 128 bytes and assumes a total of 32 physical pages
+(defined in ~/cs330assignment1/nachos/code/machine/machine.h and 
+~/cs330assignment1/nachos/code/machine/disk.h).
+So, any program that exceeds the total capacity of 128*32 bytes i.e., 4096
+bytes would crash with an exception. Now returning to the discussion of
+the StartProcess() function, once the address space is allocated, it attaches
+this space to the current thread. So it is clear that the user program runs
+in the context of the main thread created during the initialization of NachOS.
+Next, it initializes the registers and restores states, if any, and then calls
+Run() on the machine object. The Run() function is defined in
+~/cs330assignment1/nachos/code/machine/mipssim.cc. This function starts executing 
+the user program in an infinite for loop until the program terminates through some
+exception or system call. The user program always starts executing from the
+__start label in ~/cs330assignment1/nachos/code/test/start.s. This is where the 
+main function of the user program gets called from through the instruction "jal main".
+After main returns, the sys_Exit(0) call is made, which invokes the syscall_Exit
+system call. So, even if your user program does not have a call to sys_Exit(), the
+program will be forced to go through it for a clean termination.
+
+As we have seen, currently NachOS implements only five system calls: one for 
+halting the simulated machine and four others to implement different flavours 
+of print to stdout. Your task is to implement the following twelve system
+calls by augmenting the code in exception.cc, possibly with other necessary
+changes in the other parts of the simulator. However, you should confine
+yourself to the following three directories only: 
+~/cs330assignment1/nachos/code/machine/, ~/cs330assignment1/nachos/code/threads/, 
+~/cs330assignment1/nachos/code/userprog/. The system calls are discussed below.
+
+syscall_GetReg: Returns the contents of the processor register, number of which is 
+passed as argument. Any return value of a syscall must be placed in register $2.
+The testregPA.c program provided to you prints out the current program counter in hex
+as a test for syscall_GetReg. However, you also need to verify that the printed value is 
+correct. You can generate a dis-assembly of ~/cs330assignment1/nachos/code/test/testregPA.coff 
+by doing the following (works only on csecourses4.cse.iitk.ac.in).
+
+> ~/cs330assignment1/mips-i386-xgcc/bin/mips-objdump -D ~/cs330assignment1/nachos/code/test/testregPA.coff | less
+
+The first column is the value of the program counter.
+
+syscall_GetPA: Returns the physical address corresponding to the virtual address
+passed as argument. You have to catch three error conditions in this system call and return
+-1 if an error has occurred; otherwise the system call should return the physical address 
+corresponding to the virtual address passed as the argument. The conditions to be checked 
+are as follows.
+
+1. The virtual page number is not larger than the number of entries in the page table. 
+The virtual page number is obtained by dividing the virtual address by the PageSize defined in 
+~/cs330assignment1/nachos/code/machine/machine.h.
+
+2. The page table entry has the valid field set to true indicating that the entry holds a 
+valid physical page number.
+
+3. The obtained physical page number (physicalPage field of the page table entry) is not 
+larger than the number of physical pages. The number of physical pages is defined as NumPhysPages in 
+~/cs330assignment1/nachos/code/machine/machine.h.
+
+If any of these three fails, the system call should return -1.
+
+You can take help from the Translate method defined in ~/cs330assignment1/nachos/code/machine/translate.cc to 
+see how a virtual address is translated to a physical address. This method has many things that you should 
+not include in your system call handler.
+
+syscall_GetPID: Returns the id of the calling thread. While I have declared
+the pid variable in the Thread class defined in
+~/cs330assignment1/nachos/code/threads/thread.h, your task is to assign a unique value to this
+when a thread is created.
+
+syscall_GetPPID: Returns the id of the parent of the calling thread. The
+ppid variable has been declared in the Thread class defined in
+~/cs330assignment1/nachos/code/threads/thread.h. You have to assign the correct value to it at
+the time of thread creation depending on who the creator is.
+
+syscall_Time: Returns the total ticks at present (roughly represents the current
+simulated time). The Statistics class in ~/cs330assignment1/nachos/code/machine/stats.h defines
+the totalTicks variable. The value of this is the current total ticks. You
+need to find out how to get access to this variable through an object of type
+Statistics class. Such an object has already been created in the simulator.
+
+syscall_Sleep: Puts the calling thread to sleep for the number of ticks passed as
+argument. You may take help from the Thread::Sleep() method implemented in
+~/cs330assignment1/nachos/code/threads/thread.cc.
+
+syscall_Yield: The calling thread voluntarily gives up the CPU to the scheduler so
+that some other thread can now be scheduled. You can take help from the
+Thread::Yield() method implemented in ~/cs330assignment1/nachos/code/threads/thread.cc.
+
+syscall_Fork: Create a new thread and duplicate the address space of the calling
+thread. You have to create a new address space and copy the contents from
+the creator's space. You may take help from the Thread::Fork() method implemented in
+~/cs330assignment1/nachos/code/threads/thread.cc. However, remember that the implemented method
+is different from the syscall_Fork syscall. The syscall_Fork syscall should be such that
+the execution in the child starts as if it has just returned from the
+sys_Fork() call. Also, the child pid should be returned to the parent and the
+child should get a zero return value. Recall that the syscall return values 
+are placed in register $2. The parent and child threads will have different
+return values for syscall_Fork. Make sure to set up the pageTable of the newly
+created thread's address space correctly.
+
+syscall_Join: This is almost same as the wait() call we have discussed in the
+class. However the sys_Join() call takes the pid of the thread to be waited on,
+as in UNIX waitpid().
+
+syscall_Exec: This is same as the execv() call we have discussed in the class. In
+the context of NachOS, you need to mimic what the StartProcess() function
+does. Do not try to reuse or overwrite the existing address space.
+Remember to set up the page table for the new address space properly.
+
+syscall_Exit: This implements the sys_Exit() call by destroying the calling
+thread. Note that every user program calls sys_Exit() through __start defined in
+~/cs330assignment1/nachos/code/test/start.s unless the program is halted through some other
+exception. The syscall_Exit call needs to remove the calling thread's context
+from the simulator. Read the companion draft on NachOS to see how a thread is
+to destroyed.
+
+syscall_NumInstr: Returns the number of instructions executed so far by the calling
+process.
+
+The following user programs in the ~/cs330assignment1/nachos/code/test/ directory are 
+specifically written to help you test the correctness of the implementation of
+these twelve system calls.
+
+forkjoin.c
+printtest.c
+testexec.c
+testregPA.c
+testyield.c
+vectorsum.c
+
+Once you implement all the twelve system calls, these programs should all
+execute and terminate cleanly, as expected without any error. When you want to
+test your implementation, do the following.
+
+> cd ~/cs330assignment1/nachos/code/userprog/
+> make
+> ./nachos -x test-executable-name
+
+Replace test-executable-name with the executable name of one of the
+aforementioned six user programs.
+
+WHAT TO SUBMIT
+---------------
+
+Before you submit, do the following.
+
+> cd ~/cs330assignment1/nachos/code/threads/
+> make clean
+> cd ~/cs330assignment1/nachos/code/userprog/
+> make clean
+
+Change directory to ~/cs330assignment1/nachos/code/ and prepare the submission zip ball as
+follows.
+
+> cd ~/cs330assignment1/nachos/code/
+> zip -r groupX.zip machine/ threads/ userprog/
+
+Replace X by your assigned group id. Prepare a plain text file named README_groupX.txt
+and explain what you did to implement each of the system calls. Send an email to
+cs330autumn2014@gmail.com with subject "[CS330] Assignment1" and attach 
+groupX.zip and README_groupX.txt to the mail. The body of the mail should contain the following
+two sentences.
+
+1. I have not copied any part of this submission from any other group.
+2. I have not helped any other group copy any part of this submission.
+
+All the members of the group should put their names and roll numbers below the
+statement.
+
+PUNISHMENT FOR CHEATING
+------------------------
+
+Members of any group found cheating or helping others cheat will be assigned an F grade in
+the course.
+
+HINTS
+------
+
+Regarding the implementation of syscall_Exec
+---------------------------------------------
+
+The system call handler for syscall_Exec should not advance the program counter, 
+since the sys_Exec() call never returns and must start execution at the beginning 
+of the passed executable.
+
+Regarding the implementation of syscall_Fork
+---------------------------------------------
+
+You have to change the source code of NachOS at several places to implement 
+syscall_Fork and make it work correctly. Once syscall_Fork is implemented, at least 
+two user threads will execute on NachOS in a time-shared manner. So it is natural to 
+expect that the printed characters on stdout from these two threads will get interleaved.
+
+The syscall_Fork implementation should create a thread object, create a new address 
+space, set up the page table of the new address space properly, copy the contents of 
+the parent space into the new space (each thread object has a pointer to its
+address space), and finally, prepare the context of the child in such a way that when 
+it is scheduled, it will start executing from the next PC. The preparation of the child 
+context involves several steps. Copy the register set of the parent (the current machine 
+registers) into child's saved user context. You can use the SaveUserState() method of the
+Thread class defined in ~/cs330assignment1/nachos/code/threads/thread.cc for this purpose. 
+Make sure to set the return register value in the child context to zero. Next, we need to 
+allocate the stack for running the simulator thread which will simulate the child code segment. 
+It is important to understand that every user thread is simulated by a NachOS kernel thread 
+and this NachOS thread needs a stack (this is different from the simulated stack of the 
+user program, for which the address space has already been allocated as discussed above). 
+You can think of the NachOS thread as a kernel thread attached to one user thread. 
+You should try to understand what the StackAllocate() method in the Thread class defined
+in ~/cs330assignment1/nachos/code/threads/thread.cc does. You will use this method to create 
+the stack for every forked thread. However, you need to pass a function name to this method. 
+This is the function the NachOS thread will execute when the child is scheduled later.
+This function will contain anything that the kernel needs to set up before the child thread can 
+run for the first time. To set up the contents of this function, we need to understand what the 
+kernel does in a context switch. This is defined in the Run() method of the Scheduler class defined 
+in ~/cs330assignment1/nachos/code/threads/scheduler.cc. The context switch happens when this
+method calls _SWITCH(). Notice that when the currently running thread is switched out, it is 
+actually executing NachOS kernel code in the Run() method of the Scheduler class. Every NachOS 
+thread spends a part of its life simulating the user program thread and the remaining part in 
+running NachOS kernel code whenever it needs to simulate a system call on behalf of the
+user thread. This system call may lead to execution of other NachOS kernel codes such as scheduler 
+code on this thread's context. Since at the time a thread is switched out it is executing in the 
+_SWITCH() function, every scheduled thread would start execution right after _SWITCH() when it is 
+selected for running at a later point in time. This is, however, not true for a thread T that is 
+scheduled for the first time. Before T is scheduled, the currently running thread will call
+the Run() method of the Scheduler class (as usual), which will invoke _SWITCH(), as usual. However, 
+after the _SWITCH() call returns, the new thread T will start running at the function that you 
+passed as the first argument to StackAllocate(). Now, it should be clear that the function passed 
+to StackAllocate() must carry out the things that the Run() method does after
+_SWITCH() returns. You can see that after _SWITCH() returns, any threads needed to be destroyed are 
+destroyed, and the registers and the address space of the scheduled thread are restored. This is 
+what you need to do in the function that you pass to StackAllocate(). In addition to these, 
+you should call the Run() method of the Machine class defined in 
+~/cs330assignment1/nachos/code/machine/mipssim.cc. This method starts running the user thread in 
+the context of the just scheduled NachOS thread. Coming back to the implementation of syscall_Fork,
+after the StckAllocate(), the child thread is ready to be put in the ready queue. This is done through 
+the ReadyToRun() method of the Scheduler class defined in ~/cs330assignment1/nachos/code/threads/scheduler.cc. 
+Before calling this method, you have to turn off interrupt and turn it on back after the call. See how 
+this method is used in other places. Finally, set the return register of the calling thread to the pid 
+of the forked child.
+
+Some suggestions on how to copy the address space of one process into the address space of another:
+
+First, let me explain the distinction between the virtual
+address space and the physical address space. The virtual addresses are
+generated by the user program. The physical address space is the space of
+the actual simulated memory of NachOS. Every virtual address must have a
+corresponding physical address. The physical memory is simulated as a
+character array named mainMemory in the Machine class. So, the physical
+address of the byte mainMemory[i] is simply i. The page table of a process
+address space remembers the mapping between virtual addresses and the
+physical addresses. The way it is done is that both the virtual and physical
+address spaces are divided into smaller chunks called pages. Each page is of
+size 128 bytes (defined as PageSize). A virtual page maps to some physical
+page. The current implementation of the page table maps the entire virtual
+address space of a process onto a contiguous range of physical pages. For
+example, a process with ten virtual pages (numbered 0 to 9) may have
+physical pages 13 to 22. So the contents of the address space of this
+process can be found in mainMemory[12*PageSize] to
+mainMemory[22*PageSize-1]. A virtual address, say, 500 of this process maps
+to mainMemory[12*PageSize+500]. Notice the the virtual address 500 of some
+other process would map to some other location in the mainMemory array.
+
+To copy the contents of the address space of process A into that of process
+B, you first need to find out the starting index of the physical address
+space of A in the mainMemory array. This can be done by multiplying the
+first physical page number of process A by the PageSize. Let's call it S.
+Next, we need to know the span of the address space of process A. This is
+essentially the number of pages of process A multiplied by the PageSize. Let
+this range be R. Similarly, let the starting index for process B be S'. Then
+we need to copy from mainMemory[S+i] to mainMemory[S'+i] as i ranges from 0
+to R-1.
+
+Regarding the implementation of syscall_Join
+---------------------------------------------
+
+We will allow a thread to only join with one of its children. So, in the implementation 
+of syscall_Join, it is necessary to check if the passed pid belongs to one of the children 
+of the calling thread. If not, syscall_Join should just return -1. If the passed pid belongs 
+to a legitimate child of the caller, the implementation checks if the child has already 
+called sys_Exit(), in which case, it just returns the exit code of the child. If the child 
+has not yet called sys_Exit(), the parent should call the Sleep() method of the Thread class 
+defined in ~/cs330assignment1/nachos/code/threads/thread.cc. Make sure to turn off interrupt 
+before calling Sleep() and turn it on back after the thread returns from Sleep(). See how 
+this method is used elsewhere in NachOS. It is now responsibility of the child to wake up the 
+sleeping parent when the child calls sys_Exit(). Make sure to return the exit code of the 
+child to the user program as the return value of syscall_Join. Keep in mind that after a thread 
+calls sys_Exit(), all its data structures may get destroyed when the next thread is scheduled. 
+So do not rely on any information stored in the thread object of an already exited thread.
+
+Regarding the implementation of syscall_Sleep
+---------------------------------------------
+
+If the passed argument is zero, you should simply call Yield() of the Thread class and do not 
+go to sleep. If the passed argument is non-zero, you need to put the caller to sleep for the 
+specified number of totalTicks. However, we need a hardware timer that can wake up the calling
+thread at the proper time. The following lines in ~/cs330assignment1/nachos/code/threads/system.cc 
+instantiate a hardware timer that generates a timer interrupt every TimerTicks (defined in stats.h).
+
+//if (randomYield)                          // start the timer (if needed)
+       timer = new Timer(TimerInterruptHandler, 0, randomYield);
+
+When such an interrupt is raised, the TimerInterruptHandler function is called. This function is 
+defined in  ~/cs330assignment1/nachos/code/threads/system.cc. Currently, it simply makes the 
+calling thread yield the CPU, which effectively simulates a context switch due to quantum expiry, where
+the quantum is TimerTicks. Keep in mind that the timer interrupt may not get generated exactly at 
+every TimerTicks time, but may drift a little. To implement syscall_Sleep, you should maintain a 
+global list of threads sleeping on a timer event. Keep the queue sorted by wakeup
+time. Every time the TimerInterruptHandler function is invoked, it should check if it needs to 
+wake up one or more waiting threads from this list. Since the timer interrupt is not generated 
+every tick, a thread may overshoot its wakeup time, but this is the best we can do. So, the wakeup 
+condition should check whether the wakeup time of a thread is less than or equal to the current 
+totalTicks. If a thread needs to be woken up, it should be moved to the ready queue by calling the 
+ReadyToRun() method of the Scheduler class defined in ~/cs330assignment1/nachos/code/threads/scheduler.cc. 
+Before calling this method, you have to turn off interrupt and turn it on back after the call.
+See how this method is used in other places. To put a thread to sleep, use the Sleep() method of the 
+Thread class defined in ~/cs330assignment1/nachos/code/threads/thread.cc. Make sure to turn off interrupt 
+before calling Sleep() and turn it on back after the thread returns from Sleep(). See how this method 
+is used elsewhere in NachOS.
+
+Amount of simulated physical memory
+------------------------------------
+
+The simulated physical memory size is defined as NumPhysPages * PageSize. The constant 
+NumPhysPages is defined as 32 in ~/cs330assignment1/nachos/code/machine/machine.h. None 
+of the seven test programs provided to you for testing your implementations will require 
+more pages than this. If you want to run more complicated programs for a more rigorous 
+test (e.g., sys_Exec in a forked child, or nested fork, or forks in a loop, etc.), you may 
+have to increase the amount of simulated memory. In such situations, increase NumPhysPages 
+to a higher power of two such as 64 or 128.
