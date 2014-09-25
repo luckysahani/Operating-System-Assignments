@@ -1,0 +1,49 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.coff
+*.noff
+
+# Extra file
+userprog/R?_*
+test/queue
+test/sem5*
+copy
+test/temp
+test/shm
+test/semGet
+test/sem1
+test/sem
+test/sem2
+test/sem3
+test/sem4
+test/vmtest1
+test/vmtest2
+userprog/nachos
+test/forkjoin
+test/testregPA
+threads/nachos
+test/halt
+test/matmult
+test/printtest
+test/shell
+test/sort
+test/testexec
+test/testyield
+test/vectorsum
+bin/coff2noff
+test/forkjoin_hard
+test/testloop*
+userprog/batch*
+userprog/temp
+test/testburst.c

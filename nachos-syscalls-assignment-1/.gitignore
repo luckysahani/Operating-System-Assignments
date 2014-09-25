@@ -1,0 +1,30 @@
+#Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.coff
+*.noff
+
+# Extra file
+test/temp
+userprog/nachos
+test/forkjoin
+test/testregPA
+threads/nachos
+test/halt
+test/matmult
+test/printtest
+test/shell
+test/sort
+test/testexec
+test/testyield
+test/vectorsum

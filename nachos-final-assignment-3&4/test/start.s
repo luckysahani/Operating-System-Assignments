@@ -1,0 +1,275 @@
+/* Start.s 
+ *	Assembly language assist for user programs running on top of Nachos.
+ *
+ *	Since we don't want to pull in the entire C library, we define
+ *	what we need for a user program here, namely Start and the system
+ *	calls.
+ */
+
+#define IN_ASM
+#include "syscall.h"
+
+        .text   
+        .align  2
+
+/* -------------------------------------------------------------
+ * __start
+ *	Initialize running a C program, by calling "main". 
+ *
+ * 	NOTE: This has to be first, so that it gets loaded at location 0.
+ *	The Nachos kernel always starts a program by jumping to location 0.
+ * -------------------------------------------------------------
+ */
+
+	.globl __start
+	.ent	__start
+__start:
+	jal	main
+	move	$4,$0		
+	jal	Exit	 /* if we return from main, exit(0) */
+	.end __start
+
+/* -------------------------------------------------------------
+ * System call stubs:
+ *	Assembly language assist to make system calls to the Nachos kernel.
+ *	There is one stub per system call, that places the code for the
+ *	system call into register r2, and leaves the arguments to the
+ *	system call alone (in other words, arg1 is in r4, arg2 is 
+ *	in r5, arg3 is in r6, arg4 is in r7)
+ *
+ * 	The return value is in r2. This follows the standard C calling
+ * 	convention on the MIPS.
+ * -------------------------------------------------------------
+ */
+
+	.globl Halt
+	.ent	Halt
+Halt:
+	addiu $2,$0,SC_Halt
+	syscall
+	j	$31
+	.end Halt
+
+	.globl Exit
+	.ent	Exit
+Exit:
+	addiu $2,$0,SC_Exit
+	syscall
+	j	$31
+	.end Exit
+
+	.globl Exec
+	.ent	Exec
+Exec:
+	addiu $2,$0,SC_Exec
+	syscall
+	j	$31
+	.end Exec
+
+	.globl Join
+	.ent	Join
+Join:
+	addiu $2,$0,SC_Join
+	syscall
+	j	$31
+	.end Join
+
+	.globl Create
+	.ent	Create
+Create:
+	addiu $2,$0,SC_Create
+	syscall
+	j	$31
+	.end Create
+
+	.globl Open
+	.ent	Open
+Open:
+	addiu $2,$0,SC_Open
+	syscall
+	j	$31
+	.end Open
+
+	.globl Read
+	.ent	Read
+Read:
+	addiu $2,$0,SC_Read
+	syscall
+	j	$31
+	.end Read
+
+	.globl Write
+	.ent	Write
+Write:
+	addiu $2,$0,SC_Write
+	syscall
+	j	$31
+	.end Write
+
+	.globl Close
+	.ent	Close
+Close:
+	addiu $2,$0,SC_Close
+	syscall
+	j	$31
+	.end Close
+
+	.globl Fork
+	.ent	Fork
+Fork:
+	addiu $2,$0,SC_Fork
+	syscall
+	j	$31
+	.end Fork
+
+	.globl Yield
+	.ent	Yield
+Yield:
+	addiu $2,$0,SC_Yield
+	syscall
+	j	$31
+	.end Yield
+
+	.globl PrintInt
+	.ent    PrintInt
+PrintInt:
+        addiu $2,$0,SC_PrintInt
+        syscall
+        j       $31
+	.end PrintInt
+
+	.globl PrintIntHex
+	.ent    PrintIntHex
+PrintIntHex:
+	addiu $2,$0,SC_PrintIntHex
+	syscall
+	j       $31
+	.end PrintInt
+
+	.globl PrintChar
+	.ent    PrintChar
+PrintChar:
+        addiu $2,$0,SC_PrintChar
+        syscall
+        j       $31
+	.end PrintChar
+
+	.globl PrintString
+	.ent    PrintString
+PrintString:
+        addiu $2,$0,SC_PrintString
+        syscall
+        j       $31
+	.end PrintString
+
+	.globl GetReg
+	.ent    GetReg
+GetReg:
+	addiu $2,$0,SC_GetReg
+	syscall
+	j       $31
+	.end GetReg
+
+	.globl GetPA
+	.ent    GetPA
+GetPA:
+	addiu $2,$0,SC_GetPA
+	syscall
+	j       $31
+	.end GetPA
+
+	.globl GetPID
+	.ent    GetPID
+GetPID:
+	addiu $2,$0,SC_GetPID
+	syscall
+	j       $31
+	.end GetPID
+
+	.globl GetPPID
+	.ent    GetPPID
+GetPPID:
+	addiu $2,$0,SC_GetPPID
+	syscall
+	j       $31
+	.end GetPPID
+
+	.globl Sleep
+	.ent    Sleep
+Sleep:
+	addiu $2,$0,SC_Sleep
+	syscall
+	j       $31
+	.end Sleep
+
+	.globl GetTime
+	.ent    GetTime
+GetTime:
+	addiu $2,$0,SC_Time
+	syscall
+	j       $31
+	.end GetTime
+
+	.globl SemGet
+	.ent    SemGet
+SemGet:
+	addiu $2,$0,SC_SemGet
+	syscall
+	j       $31
+	.end SemGet
+
+	.globl SemOp
+	.ent    SemOp
+SemOp:
+	addiu $2,$0,SC_SemOp
+	syscall
+	j       $31
+	.end SemOp
+
+	.globl SemCtl
+	.ent    SemCtl
+SemCtl:
+	addiu $2,$0,SC_SemCtl
+	syscall
+	j       $31
+	.end SemCtl
+
+	.globl CondGet
+	.ent    CondGet
+CondGet:
+	addiu $2,$0,SC_CondGet
+	syscall
+	j       $31
+	.end CondGet
+
+	.globl CondOp
+	.ent    CondOp
+CondOp:
+	addiu $2,$0,SC_CondOp
+	syscall
+	j       $31
+	.end CondOp
+
+	.globl CondRemove
+	.ent    CondRemove
+CondRemove:
+	addiu $2,$0,SC_CondRemove
+	syscall
+	j       $31
+	.end CondRemove
+
+	.globl ShmAllocate
+	.ent    ShmAllocate
+ShmAllocate:
+	addiu $2,$0,SC_ShmAllocate
+	syscall
+	j       $31
+	.end ShmAllocate
+
+/* dummy function to keep gcc happy */
+        .globl  __main
+        .ent    __main
+__main:
+        j       $31
+        .end    __main
+
