@@ -1,0 +1,18 @@
+Please compile the programs as follows.
+
+gcc -O3 caesar-cipher.c -o caesar-cipher
+gcc -O3 execv_test_arg.c -o execv_test_arg
+gcc -O3 fork_test.c -o fork_test
+gcc -O3 print.c -o print
+gcc -O3 execv_test.c -o execv_test
+gcc -O3 minishell.c -o minishell
+gcc -O3 vector_sum.c -o vector_sum
+
+Compare the execution time of vector_sum and fork_test by using the "time" command.
+
+In the minishell program, if you use any command that is not present in the current
+directory, please specify the full path to the command. See examples below.
+
+> /bin/cp print.c print_copy.c  (as opposed to cp print.c print_copy.c)
+> /bin/rm print_copy.c          (as opposed to rm print_copy.c)
+> caesar-cipher ZHOFRPH WR FV663

@@ -6,7 +6,7 @@
 #define SIZE 1000000000
 
 int *a, num_threads;
-unsigned long long *private_sum;
+unsigned long long *private_sum, sum=0;
 
 void *solver (void *param)
 {
@@ -16,14 +16,18 @@ void *solver (void *param)
         if (num_threads == 2) {
            for (i=SIZE/2; i<SIZE; i++) {
                 private_sum[id] += a[i];
+                //sum += a[i];
            }
         }
         else {
            j = (SIZE/num_threads)*(id+1);
 	   for (i=(SIZE/num_threads)*id; i<j; i++) {
 		private_sum[id] += a[i];
+                //sum += a[i];
 	   }
         }
+
+        sum += private_sum[id];
 }	
 
 int main (int argc, char *argv[])
@@ -32,7 +36,6 @@ int main (int argc, char *argv[])
 	pthread_t *threads;
 	pthread_attr_t attr;
         struct timeval tp_start, tp_end;
-        unsigned long long sum=0; 
 
 	if (argc != 2) {
 		printf ("Need number of threads.\n");
@@ -78,7 +81,6 @@ int main (int argc, char *argv[])
 	
 	for (i=1; i<num_threads; i++) {
 		pthread_join(threads[i], NULL);
-		sum += private_sum[i];
 	}
 
 	printf("SUM: %llu\n", sum);

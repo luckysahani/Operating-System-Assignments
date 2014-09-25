@@ -5,8 +5,6 @@
 #include <sys/shm.h>
 #include <sys/time.h>
 
-#define SUM_KEY 19
-
 #define SIZE 1000000000
 
 int main (void)
@@ -15,11 +13,19 @@ int main (void)
 	char *shm;
 	unsigned long long child_sum=0, parent_sum=0;
         struct timeval tp_start, tp_end;
+        key_t key;
 
         a = (int*)malloc(SIZE*sizeof(int));
 
 	for (i=0; i<SIZE; i++) a[i] = i;
-	shm_id = shmget(SUM_KEY, 4096, 0777 | IPC_CREAT);
+
+        /* ftok takes the path of an existing file (possibly a file belonging
+           to your project) and a non-zero byte, and returns an integer key.
+           See `man ftok' for more detail on how the key is generated.
+        */
+        key = ftok("/home/luckys/cs330/class_programs/fork_shm_ftok.c", 1);
+
+	shm_id = shmget(key, 4096, 0777 | IPC_CREAT);
 
         gettimeofday(&tp_start, NULL);
  
